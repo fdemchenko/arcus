@@ -33,7 +33,7 @@ func main() {
 	logger.Info("connected to db successfully")
 
 	usersRepo := &postgres.UsersRepository{DB: db}
-	userService := services.NewUserService(usersRepo)
+	userService := services.NewUserService(usersRepo, logger)
 	application := app.New(userService)
 
 	address := fmt.Sprintf("%s:%d", cfg.HTTPServer.Host, cfg.HTTPServer.Port)
