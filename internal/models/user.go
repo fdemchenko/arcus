@@ -11,6 +11,7 @@ type User struct {
 	ID        int
 	Name      string
 	Email     string
+	Activated bool
 	Password  Password
 	CreatedAt time.Time
 	UpdatedAt time.Time
