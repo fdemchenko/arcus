@@ -1,34 +1,57 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/fdemchenko/arcus/internal/app"
 	"github.com/fdemchenko/arcus/internal/config"
+	"github.com/fdemchenko/arcus/internal/repositories/postgres"
+	"github.com/fdemchenko/arcus/internal/services"
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	cfg := config.MustLoad()
+	db, err := openDB(cfg.Storage)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /hello", func(w http.ResponseWriter, r *http.Request) {
-		data := map[string]string{
-			"env": cfg.Env,
-		}
-
-		json.NewEncoder(w).Encode(data)
-	})
+	usersRepo := &postgres.UsersRepository{DB: db}
+	userService := services.NewUserService(usersRepo)
+	application := app.New(userService)
 
 	address := fmt.Sprintf("%s:%d", cfg.HTTPServer.Host, cfg.HTTPServer.Port)
 	server := http.Server{
 		Addr:    address,
-		Handler: mux,
+		Handler: application.Routes(),
 	}
-
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func openDB(dbConfig config.StorageConfig) (*sql.DB, error) {
+	db, err := sql.Open("postgres", dbConfig.DSN)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	err = conn.PingContext(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	conn.Close()
+
+	return db, nil
 }
