@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/fdemchenko/arcus/internal/app"
 	"github.com/fdemchenko/arcus/internal/config"
@@ -14,12 +15,22 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	EnvDevelopment = "development"
+	EnvProduction  = "production"
+)
+
 func main() {
 	cfg := config.MustLoad()
+	logger := initLogger(cfg.Env)
+
 	db, err := openDB(cfg.Storage)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to create DB connections pool", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
+
+	logger.Info("connected to db successfully")
 
 	usersRepo := &postgres.UsersRepository{DB: db}
 	userService := services.NewUserService(usersRepo)
@@ -30,9 +41,11 @@ func main() {
 		Addr:    address,
 		Handler: application.Routes(),
 	}
+
+	logger.Info("starting application web server", slog.String("address", address))
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatalln(err)
+		logger.Error("http server error", slog.String("error", err.Error()))
 	}
 }
 
@@ -54,4 +67,15 @@ func openDB(dbConfig config.StorageConfig) (*sql.DB, error) {
 	conn.Close()
 
 	return db, nil
+}
+
+func initLogger(env string) *slog.Logger {
+	switch env {
+	case EnvDevelopment:
+		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case EnvProduction:
+		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	default:
+		panic("unknown environment: " + env)
+	}
 }
