@@ -16,7 +16,7 @@ type UsersRepository struct {
 func (ur *UsersRepository) Insert(user models.User) (int, error) {
 	query := `INSERT INTO users (name, email, password_hash)
 					VALUES ($1, $2, $3) RETURNING id`
-	row := ur.DB.QueryRow(query, user.Name, user.Email, user.PasswordHash)
+	row := ur.DB.QueryRow(query, user.Name, user.Email, user.Password.Hash)
 
 	var id int
 	err := row.Scan(&id)
