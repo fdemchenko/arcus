@@ -34,7 +34,7 @@ func main() {
 
 	usersRepo := &postgres.UsersRepository{DB: db}
 	userService := services.NewUserService(usersRepo, logger)
-	application := app.New(userService)
+	application := app.New(userService, logger)
 
 	address := fmt.Sprintf("%s:%d", cfg.HTTPServer.Host, cfg.HTTPServer.Port)
 	server := http.Server{

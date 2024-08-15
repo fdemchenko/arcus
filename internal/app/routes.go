@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -21,6 +22,8 @@ func (app *Application) Routes() http.Handler {
 }
 
 func (app *Application) registerUser(w http.ResponseWriter, r *http.Request) {
+	const op = "app.routes.registerUser"
+	logger := app.logger.With("op", op)
 	var input struct {
 		Name     string `json:"name"`
 		Email    string `json:"email"`
@@ -29,6 +32,7 @@ func (app *Application) registerUser(w http.ResponseWriter, r *http.Request) {
 
 	err := request.ReadJSON(r.Body, &input)
 	if err != nil {
+		logger.Error("failed to decode JSON user input", slog.String("error", err.Error()))
 		response.SendError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -41,12 +45,14 @@ func (app *Application) registerUser(w http.ResponseWriter, r *http.Request) {
 	v := validator.New()
 	newUser.Validate(v)
 	if !v.IsValid() {
+		logger.Error("user model input is not valid")
 		response.SendError(w, http.StatusBadRequest, v.Errors)
 		return
 	}
 
 	id, err := app.userService.Register(newUser)
 	if err != nil {
+		logger.Error("failed to register user", slog.String("error", err.Error()))
 		if errors.Is(err, repositories.ErrEmailAlreadyExists) {
 			response.SendError(w, http.StatusConflict, err.Error())
 		} else {
@@ -54,6 +60,7 @@ func (app *Application) registerUser(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	logger.Info("new user registered", slog.Int("user_id", id))
 
 	if err := response.WriteJSON(w, http.StatusCreated, response.Envelope{"user_id": id}); err != nil {
 		response.SendServerError(w)
