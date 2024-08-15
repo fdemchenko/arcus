@@ -1,8 +1,8 @@
 package models
 
 import (
-	"regexp"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fdemchenko/arcus/internal/validator"
 )
@@ -29,12 +29,10 @@ func (user *User) Validate(v validator.Validator) {
 	v.Check(len(user.Name) <= 50, "name", "name should be less or equal than 50 characters long")
 
 	v.Check(user.Password.Plain != "", "password", "should not be empty")
-	v.Check(CheckUserPassword(user.Password.Plain), "password", "password should be min 8 characters, at least one letter, one number and one special character")
+	v.Check(CheckUserPassword(user.Password.Plain), "password", "password should be at least 6 characters long")
 
 }
 
 func CheckUserPassword(password string) bool {
-	// Minimum eight characters, at least one letter, one number and one special character
-	passwordRx := regexp.MustCompile(`^*[A-Za-z].*\\d.*[@$!%*#?&][A-Za-z\\d@$!%*#?&]{8,}$`)
-	return passwordRx.MatchString(password)
+	return utf8.RuneCountInString(password) >= 6
 }
