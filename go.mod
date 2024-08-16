@@ -6,6 +6,7 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/justinas/alice v1.2.0
 	github.com/lib/pq v1.10.9
+	github.com/rabbitmq/amqp091-go v1.10.0
 	golang.org/x/crypto v0.26.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
