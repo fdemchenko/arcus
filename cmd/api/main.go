@@ -37,7 +37,7 @@ func main() {
 	usersRepo := &postgres.UsersRepository{DB: db}
 	tokensRepo := &postgres.TokensRepository{DB: db}
 
-	mailerService := mailer.New(cfg.SMTPMailer, templates.TemplatesFS)
+	mailerService := mailer.NewMailSender(cfg.SMTPMailer, templates.TemplatesFS)
 
 	userService := services.NewUserService(usersRepo, logger, tokensRepo, mailerService)
 	application := app.New(userService, logger)

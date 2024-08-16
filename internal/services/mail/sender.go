@@ -10,21 +10,21 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-type Mailer struct {
+type MailSender struct {
 	dialer         *gomail.Dialer
 	sender         string
 	templatesFS    fs.FS
 	templatesCache map[string]*template.Template
 }
 
-func New(cfg config.SMTPConfig, templatesFS fs.FS) *Mailer {
+func NewMailSender(cfg config.SMTPConfig, templatesFS fs.FS) *MailSender {
 	dialer := gomail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
 	cache := make(map[string]*template.Template)
 
-	return &Mailer{dialer: dialer, sender: cfg.SenderAddress, templatesFS: templatesFS, templatesCache: cache}
+	return &MailSender{dialer: dialer, sender: cfg.SenderAddress, templatesFS: templatesFS, templatesCache: cache}
 }
 
-func (m *Mailer) prepareTemplate(templateName string) (*template.Template, error) {
+func (m *MailSender) prepareTemplate(templateName string) (*template.Template, error) {
 	if cachedTemplate, exists := m.templatesCache[templateName]; exists {
 		return cachedTemplate, nil
 	}
@@ -35,7 +35,7 @@ func (m *Mailer) prepareTemplate(templateName string) (*template.Template, error
 	return parsedTemplate, nil
 }
 
-func (m *Mailer) Send(to string, templateName string, data interface{}) error {
+func (m *MailSender) Send(to string, templateName string, data interface{}) error {
 	t, err := m.prepareTemplate(templateName)
 	if err != nil {
 		return err
