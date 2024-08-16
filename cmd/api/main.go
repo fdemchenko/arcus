@@ -12,9 +12,10 @@ import (
 	"github.com/fdemchenko/arcus/internal/config"
 	"github.com/fdemchenko/arcus/internal/repositories/postgres"
 	"github.com/fdemchenko/arcus/internal/services"
-	"github.com/fdemchenko/arcus/internal/services/mailer"
+	"github.com/fdemchenko/arcus/internal/services/mail"
 	"github.com/fdemchenko/arcus/templates"
 	_ "github.com/lib/pq"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (
@@ -27,21 +28,32 @@ func main() {
 	logger := initLogger(cfg.Env)
 
 	db, err := openDB(cfg.Storage)
-	if err != nil {
-		logger.Error("failed to create DB connections pool", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
-
+	handleCriticalError(err, "failed to create DB connections pool", logger)
 	logger.Info("connected to db successfully")
+
+	conn, err := amqp.Dial(cfg.RabbitMQConnString)
+	handleCriticalError(err, "failed to connect to RabbitMQ", logger)
+
+	channel, err := conn.Channel()
+	handleCriticalError(err, "failed to create RabbitMQ channel", logger)
 
 	usersRepo := &postgres.UsersRepository{DB: db}
 	tokensRepo := &postgres.TokensRepository{DB: db}
 
-	mailerService := mailer.New(cfg.SMTPMailer, templates.TemplatesFS)
+	mailerService := mail.NewMailSender(cfg.SMTPMailer, templates.TemplatesFS)
+	consumer, err := mail.NewMailerConsumer(mailerService, channel, logger)
+	handleCriticalError(err, "failer to create mailer consumer", logger)
 
-	userService := services.NewUserService(usersRepo, logger, tokensRepo, mailerService)
+	err = consumer.StartConsuming()
+	handleCriticalError(err, "failer to start mailer consumer", logger)
+
+	producer, err := mail.NewMailerProducer(channel)
+	handleCriticalError(err, "failer to create mailer producer", logger)
+
+	userService := services.NewUserService(usersRepo, logger, tokensRepo, producer)
 	application := app.New(userService, logger)
 
+	// http server start
 	address := fmt.Sprintf("%s:%d", cfg.HTTPServer.Host, cfg.HTTPServer.Port)
 	server := http.Server{
 		Addr:    address,
@@ -83,5 +95,12 @@ func initLogger(env string) *slog.Logger {
 		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	default:
 		panic("unknown environment: " + env)
+	}
+}
+
+func handleCriticalError(err error, message string, logger *slog.Logger) {
+	if err != nil {
+		logger.Error(message, slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 }

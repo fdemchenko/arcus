@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	Storage    StorageConfig `yaml:"storage"`
-	HTTPServer HTTPConfig    `yaml:"http-server"`
-	SMTPMailer SMTPConfig    `yaml:"smtp-mailer"`
-	OpenAIKEY  string        `yaml:"openai-key" env:"ARCUS_OPENAI_KEY" env-required:"true"`
-	Env        string        `yaml:"env" env-default:"development"`
+	Storage            StorageConfig `yaml:"storage"`
+	HTTPServer         HTTPConfig    `yaml:"http-server"`
+	SMTPMailer         SMTPConfig    `yaml:"smtp-mailer"`
+	RabbitMQConnString string        `yaml:"rabbitmq-conn-string" env-required:"true"`
+	OpenAIKEY          string        `yaml:"openai-key" env:"ARCUS_OPENAI_KEY" env-required:"true"`
+	Env                string        `yaml:"env" env-default:"development"`
 }
 
 type HTTPConfig struct {

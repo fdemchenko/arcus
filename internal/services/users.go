@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/fdemchenko/arcus/internal/models"
-	"github.com/fdemchenko/arcus/templates"
+	"github.com/fdemchenko/arcus/internal/services/mail"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,13 +19,14 @@ type TokensRepository interface {
 	Insert(models.Token) error
 }
 
-type MailerService interface {
-	Send(to string, templateName string, data interface{}) error
+type MailerProducer interface {
+	Publish(command mail.SendEmailCommand[any]) error
 }
+
 type UsersService struct {
 	usersRepository  UsersRepository
 	tokensRepository TokensRepository
-	mailerService    MailerService
+	mailerProducer   MailerProducer
 	logger           *slog.Logger
 }
 
@@ -33,13 +34,13 @@ func NewUserService(
 	usersRepository UsersRepository,
 	logger *slog.Logger,
 	tokensRepository TokensRepository,
-	mailerService MailerService,
+	mailerProducer MailerProducer,
 ) *UsersService {
 	return &UsersService{
 		usersRepository:  usersRepository,
-		mailerService:    mailerService,
 		logger:           logger,
 		tokensRepository: tokensRepository,
+		mailerProducer:   mailerProducer,
 	}
 }
 
@@ -72,9 +73,14 @@ func (us *UsersService) Register(user models.User) (int, error) {
 		return newUserID, nil
 	}
 
-	err = us.mailerService.Send(user.Email, "user_welcome.tmpl", templates.UserWelcomeData{Token: activationToken.PlainText, Host: "localhost"})
+	command := mail.SendEmailCommand[any]{
+		To:           user.Email,
+		TemplateName: "user_welcome.tmpl",
+		TemplateData: mail.UserWelcomeData{Token: activationToken.PlainText, Name: user.Name},
+	}
+	err = us.mailerProducer.Publish(command)
 	if err != nil {
-		logger.Error("failed to send welcome email", slog.String("error", err.Error()))
+		logger.Error("failed to send email command", slog.String("error", err.Error()))
 	}
 
 	return newUserID, nil
