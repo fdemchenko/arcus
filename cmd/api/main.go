@@ -41,7 +41,7 @@ func main() {
 	tokensRepo := &postgres.TokensRepository{DB: db}
 
 	mailerService := mail.NewMailSender(cfg.SMTPMailer, templates.TemplatesFS)
-	consumer, err := mail.NewMailerConsumer(mailerService, channel)
+	consumer, err := mail.NewMailerConsumer(mailerService, channel, logger)
 	handleCriticalError(err, "failer to create mailer consumer", logger)
 
 	err = consumer.StartConsuming()

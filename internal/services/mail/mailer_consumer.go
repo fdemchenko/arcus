@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -17,9 +18,10 @@ type Sender interface {
 type MailerConsumer struct {
 	sender  Sender
 	channel *amqp.Channel
+	logger  *slog.Logger
 }
 
-func NewMailerConsumer(sender Sender, channel *amqp.Channel) (*MailerConsumer, error) {
+func NewMailerConsumer(sender Sender, channel *amqp.Channel, logger *slog.Logger) (*MailerConsumer, error) {
 	_, err := channel.QueueDeclare(
 		EmailQueueName,
 		true,
@@ -36,10 +38,13 @@ func NewMailerConsumer(sender Sender, channel *amqp.Channel) (*MailerConsumer, e
 	return &MailerConsumer{
 		sender:  sender,
 		channel: channel,
+		logger:  logger,
 	}, nil
 }
 
 func (mc *MailerConsumer) StartConsuming() error {
+	const op = "mail.MailerConsumer.StartConsuming"
+	logger := mc.logger.With(slog.String("op", op))
 	deliveriesChan, err := mc.channel.Consume(
 		EmailQueueName,
 		"",
@@ -55,7 +60,10 @@ func (mc *MailerConsumer) StartConsuming() error {
 
 	go func() {
 		for delivery := range deliveriesChan {
-			_ = mc.handleDelivery(delivery)
+			err = mc.handleDelivery(delivery)
+			if err != nil {
+				logger.Error("failed to handle amqp delivery", slog.String("error", err.Error()))
+			}
 			delivery.Ack(false)
 		}
 	}()
@@ -69,5 +77,9 @@ func (mc *MailerConsumer) handleDelivery(delivery amqp.Delivery) error {
 		return fmt.Errorf("cannot decode json SendEmailCommand: %w", err)
 	}
 
-	return mc.sender.Send(sendEmailCommand.To, sendEmailCommand.TemplateName, sendEmailCommand.TemplateData)
+	err = mc.sender.Send(sendEmailCommand.To, sendEmailCommand.TemplateName, sendEmailCommand.TemplateData)
+	if err != nil {
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+	return nil
 }
