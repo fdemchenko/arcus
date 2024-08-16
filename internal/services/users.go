@@ -76,7 +76,7 @@ func (us *UsersService) Register(user models.User) (int, error) {
 	command := mail.SendEmailCommand[any]{
 		To:           user.Email,
 		TemplateName: "user_welcome.tmpl",
-		TemplateData: mail.UserWelcomeData{Token: activationToken.PlainText},
+		TemplateData: mail.UserWelcomeData{Token: activationToken.PlainText, Name: user.Name},
 	}
 	err = us.mailerProducer.Publish(command)
 	if err != nil {

@@ -8,4 +8,5 @@ type SendEmailCommand[T any] struct {
 
 type UserWelcomeData struct {
 	Token string `json:"token"`
+	Name  string `json:"name"`
 }

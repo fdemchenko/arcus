@@ -1,7 +1,7 @@
 {{define "subject"}}Welcome to Arcus!{{end}}
 
 {{define "plainBody"}}
-Hi,
+Hi, {{.Name}}
 Thanks for signing up for a Arcus account. We're excited to have you on board!
 Your activation token is {{.Token}}. 
 Thanks,
@@ -16,8 +16,8 @@ The Arcus Team
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 </head>
 <body>
-<p>Hi,</p>
-<p>Thanks for signing up for a Greenlight account. We're excited to have you on board!</p>
+<p>Hi, {{.Name}}</p>
+<p>Thanks for signing up for a Arcus account. We're excited to have you on board!</p>
 <p>Your activation token is {{.Token}}.</p>
 <p>Thanks,</p>
 <p>The Arcus Team</p>
