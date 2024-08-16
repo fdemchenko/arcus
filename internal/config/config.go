@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Storage    StorageConfig `yaml:"storage"`
 	HTTPServer HTTPConfig    `yaml:"http-server"`
+	SMTPMailer SMTPConfig    `yaml:"smtp-mailer"`
 	OpenAIKEY  string        `yaml:"openai-key" env:"ARCUS_OPENAI_KEY" env-required:"true"`
 	Env        string        `yaml:"env" env-default:"development"`
 }
@@ -18,6 +19,14 @@ type Config struct {
 type HTTPConfig struct {
 	Host string `yaml:"host" env-default:"localhost"`
 	Port int    `yaml:"port" env-default:"8080"`
+}
+
+type SMTPConfig struct {
+	Host          string `yaml:"host" env-rquired:"true"`
+	Port          int    `yaml:"port" env-default:"25"`
+	Username      string `yaml:"username" env-rquired:"true"`
+	Password      string `yaml:"password" env-rquired:"true"`
+	SenderAddress string `yaml:"sender-address" env-required:"true"`
 }
 
 type StorageConfig struct {
