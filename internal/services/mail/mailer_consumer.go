@@ -64,7 +64,10 @@ func (mc *MailerConsumer) StartConsuming() error {
 			if err != nil {
 				logger.Error("failed to handle amqp delivery", slog.String("error", err.Error()))
 			}
-			delivery.Ack(false)
+			err := delivery.Ack(false)
+			if err != nil {
+				logger.Error("failed to ack delivery", slog.String("error", err.Error()))
+			}
 		}
 	}()
 	return nil
