@@ -20,7 +20,7 @@ type TokensRepository interface {
 }
 
 type MailerService interface {
-	Send(to string, data interface{}) error
+	Send(to string, templateName string, data interface{}) error
 }
 type UsersService struct {
 	usersRepository  UsersRepository
@@ -72,7 +72,7 @@ func (us *UsersService) Register(user models.User) (int, error) {
 		return newUserID, nil
 	}
 
-	err = us.mailerService.Send(user.Email, templates.UserWelcomeData{Token: activationToken.PlainText, Host: "localhost"})
+	err = us.mailerService.Send(user.Email, "user_welcome.tmpl", templates.UserWelcomeData{Token: activationToken.PlainText, Host: "localhost"})
 	if err != nil {
 		logger.Error("failed to send welcome email", slog.String("error", err.Error()))
 	}

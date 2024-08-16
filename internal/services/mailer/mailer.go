@@ -4,44 +4,57 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io/fs"
 
 	"github.com/fdemchenko/arcus/internal/config"
-	"github.com/fdemchenko/arcus/templates"
 	"gopkg.in/gomail.v2"
 )
 
 type Mailer struct {
-	dialer          *gomail.Dialer
-	welcomeTemplate *template.Template
-	sender          string
+	dialer         *gomail.Dialer
+	sender         string
+	templatesFS    fs.FS
+	templatesCache map[string]*template.Template
 }
 
-func New(cfg config.SMTPConfig) (*Mailer, error) {
+func New(cfg config.SMTPConfig, templatesFS fs.FS) *Mailer {
 	dialer := gomail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
+	cache := make(map[string]*template.Template)
 
-	t, err := template.ParseFS(templates.TemplatesFS, "user_welcome.tmpl")
+	return &Mailer{dialer: dialer, sender: cfg.SenderAddress, templatesFS: templatesFS, templatesCache: cache}
+}
+
+func (m *Mailer) prepareTemplate(templateName string) (*template.Template, error) {
+	if cachedTemplate, exists := m.templatesCache[templateName]; exists {
+		return cachedTemplate, nil
+	}
+	parsedTemplate, err := template.ParseFS(m.templatesFS, templateName)
 	if err != nil {
 		return nil, fmt.Errorf("failer to parse email templates: %w", err)
 	}
-
-	return &Mailer{dialer: dialer, sender: cfg.SenderAddress, welcomeTemplate: t}, nil
+	return parsedTemplate, nil
 }
 
-func (m *Mailer) Send(to string, data interface{}) error {
+func (m *Mailer) Send(to string, templateName string, data interface{}) error {
+	t, err := m.prepareTemplate(templateName)
+	if err != nil {
+		return err
+	}
+
 	subject := new(bytes.Buffer)
-	err := m.welcomeTemplate.ExecuteTemplate(subject, "subject", nil)
+	err = t.ExecuteTemplate(subject, "subject", nil)
 	if err != nil {
 		return err
 	}
 
 	textBody := new(bytes.Buffer)
-	err = m.welcomeTemplate.ExecuteTemplate(textBody, "plainBody", data)
+	err = t.ExecuteTemplate(textBody, "plainBody", data)
 	if err != nil {
 		return err
 	}
 
 	htmlBody := new(bytes.Buffer)
-	err = m.welcomeTemplate.ExecuteTemplate(htmlBody, "htmlBody", data)
+	err = t.ExecuteTemplate(htmlBody, "htmlBody", data)
 	if err != nil {
 		return err
 	}
