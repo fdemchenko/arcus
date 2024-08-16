@@ -11,14 +11,16 @@ import (
 	"github.com/fdemchenko/arcus/internal/models"
 	"github.com/fdemchenko/arcus/internal/repositories"
 	"github.com/fdemchenko/arcus/internal/validator"
+	"github.com/justinas/alice"
 )
 
 func (app *Application) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /auth/register", app.registerUser)
+	middlewares := alice.New(app.RecoveryMiddleware, app.LoggingMiddleware)
 
-	return mux
+	return middlewares.Then(mux)
 }
 
 func (app *Application) registerUser(w http.ResponseWriter, r *http.Request) {
