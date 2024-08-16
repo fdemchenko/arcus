@@ -12,6 +12,7 @@ import (
 	"github.com/fdemchenko/arcus/internal/config"
 	"github.com/fdemchenko/arcus/internal/repositories/postgres"
 	"github.com/fdemchenko/arcus/internal/services"
+	"github.com/fdemchenko/arcus/internal/services/mailer"
 	_ "github.com/lib/pq"
 )
 
@@ -33,7 +34,15 @@ func main() {
 	logger.Info("connected to db successfully")
 
 	usersRepo := &postgres.UsersRepository{DB: db}
-	userService := services.NewUserService(usersRepo, logger)
+	tokensRepo := &postgres.TokensRepository{DB: db}
+
+	mailerService, err := mailer.New(cfg.SMTPMailer)
+	if err != nil {
+		logger.Error("failed to initialize mailer service", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	userService := services.NewUserService(usersRepo, logger, tokensRepo, mailerService)
 	application := app.New(userService, logger)
 
 	address := fmt.Sprintf("%s:%d", cfg.HTTPServer.Host, cfg.HTTPServer.Port)
