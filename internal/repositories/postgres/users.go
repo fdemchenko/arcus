@@ -30,3 +30,9 @@ func (ur *UsersRepository) Insert(user models.User) (int, error) {
 
 	return id, nil
 }
+
+func (ur *UsersRepository) Activate(userID int) error {
+	query := `UPDATE users SET activated = TRUE WHERE id = $1`
+	_, err := ur.DB.Exec(query, userID)
+	return err
+}

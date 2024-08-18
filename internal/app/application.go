@@ -13,6 +13,7 @@ type Application struct {
 
 type UserService interface {
 	Register(models.User) (int, error)
+	Activate(token string) error
 }
 
 func New(userService UserService, logger *slog.Logger) *Application {

@@ -1,6 +1,9 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -11,12 +14,18 @@ import (
 
 const ActivationTokenTTL = time.Hour * 2
 
+var (
+	ErrActivationTokenExpired = errors.New("activation token has expired")
+)
+
 type UsersRepository interface {
 	Insert(user models.User) (int, error)
+	Activate(userID int) error
 }
 
 type TokensRepository interface {
 	Insert(models.Token) error
+	GetByTokenHash(hash []byte, scope string) (*models.Token, error)
 }
 
 type MailerProducer interface {
@@ -84,4 +93,38 @@ func (us *UsersService) Register(user models.User) (int, error) {
 	}
 
 	return newUserID, nil
+}
+
+func (us *UsersService) Activate(tokenPlaintext string) error {
+	const op = "services.UserService.Activate"
+	logger := us.logger.With(slog.String("op", op))
+
+	// decode to bytes
+	tokenBytes := make([]byte, len(tokenPlaintext)/2)
+	_, err := hex.Decode(tokenBytes, []byte(tokenPlaintext))
+	if err != nil {
+		logger.Error("failed to decode hex-encoded token", slog.String("error", err.Error()))
+		return err
+	}
+
+	// get the token hash
+	tokenSha256 := sha256.Sum256(tokenBytes)
+
+	token, err := us.tokensRepository.GetByTokenHash(tokenSha256[:], models.ScopeActivation)
+	if err != nil {
+		logger.Error("failed to retrieve token from DB", slog.String("error", err.Error()))
+		return err
+	}
+
+	if token.ExpiresAt.Before(time.Now()) {
+		logger.Info("activation token has expired")
+		return ErrActivationTokenExpired
+	}
+
+	err = us.usersRepository.Activate(token.UserID)
+	if err != nil {
+		logger.Error("failed to update user record", slog.String("error", err.Error()))
+		return err
+	}
+	return nil
 }
