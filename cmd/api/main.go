@@ -50,7 +50,7 @@ func main() {
 	producer, err := mail.NewMailerProducer(channel)
 	handleCriticalError(err, "failer to create mailer producer", logger)
 
-	userService := services.NewUserService(usersRepo, logger, tokensRepo, producer)
+	userService := services.NewUserService(usersRepo, logger, tokensRepo, producer, cfg.ActivationTokenTTL)
 	application := app.New(userService, logger)
 
 	// http server start

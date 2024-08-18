@@ -12,8 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const ActivationTokenTTL = time.Hour * 2
-
 var (
 	ErrActivationTokenExpired = errors.New("activation token has expired")
 )
@@ -33,10 +31,11 @@ type MailerProducer interface {
 }
 
 type UsersService struct {
-	usersRepository  UsersRepository
-	tokensRepository TokensRepository
-	mailerProducer   MailerProducer
-	logger           *slog.Logger
+	usersRepository    UsersRepository
+	tokensRepository   TokensRepository
+	mailerProducer     MailerProducer
+	logger             *slog.Logger
+	activationTokenTTL time.Duration
 }
 
 func NewUserService(
@@ -44,12 +43,14 @@ func NewUserService(
 	logger *slog.Logger,
 	tokensRepository TokensRepository,
 	mailerProducer MailerProducer,
+	activationTokenTTL time.Duration,
 ) *UsersService {
 	return &UsersService{
-		usersRepository:  usersRepository,
-		logger:           logger,
-		tokensRepository: tokensRepository,
-		mailerProducer:   mailerProducer,
+		usersRepository:    usersRepository,
+		logger:             logger,
+		tokensRepository:   tokensRepository,
+		mailerProducer:     mailerProducer,
+		activationTokenTTL: activationTokenTTL,
 	}
 }
 
@@ -70,7 +71,7 @@ func (us *UsersService) Register(user models.User) (int, error) {
 		return 0, err
 	}
 
-	activationToken, err := models.GenerateToken(models.ScopeActivation, ActivationTokenTTL, newUserID)
+	activationToken, err := models.GenerateToken(models.ScopeActivation, us.activationTokenTTL, newUserID)
 	if err != nil {
 		logger.Error("failed to create activation token", slog.String("error", err.Error()))
 		return newUserID, nil
