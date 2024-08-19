@@ -24,6 +24,7 @@ type UsersRepository interface {
 type TokensRepository interface {
 	Insert(models.Token) error
 	GetByTokenHash(hash []byte, scope string) (*models.Token, error)
+	DeleteAllForUser(userID int, scope string) error
 }
 
 type MailerProducer interface {
@@ -116,6 +117,13 @@ func (us *UsersService) Activate(tokenPlaintext string) error {
 		logger.Error("failed to retrieve token from DB", slog.String("error", err.Error()))
 		return err
 	}
+
+	defer func() {
+		err := us.tokensRepository.DeleteAllForUser(token.UserID, models.ScopeActivation)
+		if err != nil {
+			logger.Error("failed to delete activation token", slog.String("error", err.Error()))
+		}
+	}()
 
 	if token.ExpiresAt.Before(time.Now()) {
 		logger.Info("activation token has expired")

@@ -41,3 +41,9 @@ func (tr *TokensRepository) GetByTokenHash(hash []byte, scope string) (*models.T
 	}
 	return &token, nil
 }
+
+func (tr *TokensRepository) DeleteAllForUser(userID int, scope string) error {
+	query := `DELETE FROM tokens WHERE user_id = $1 AND scope = $2`
+	_, err := tr.DB.Exec(query, userID, scope)
+	return err
+}
