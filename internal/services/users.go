@@ -125,11 +125,6 @@ func (us *UsersService) Activate(tokenPlaintext string) error {
 		}
 	}()
 
-	if token.ExpiresAt.Before(time.Now()) {
-		logger.Info("activation token has expired")
-		return ErrActivationTokenExpired
-	}
-
 	err = us.usersRepository.Activate(token.UserID)
 	if err != nil {
 		logger.Error("failed to update user record", slog.String("error", err.Error()))

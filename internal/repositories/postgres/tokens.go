@@ -22,7 +22,7 @@ func (tr *TokensRepository) Insert(token models.Token) error {
 
 func (tr *TokensRepository) GetByTokenHash(hash []byte, scope string) (*models.Token, error) {
 	query := `SELECT id, user_id, expires, token_hash, scope FROM tokens
-					WHERE scope = $1 AND token_hash = $2`
+					WHERE scope = $1 AND token_hash = $2 AND expires > CURRENT_TIMESTAMP`
 
 	var token models.Token
 	err := tr.DB.QueryRow(query, scope, hash).

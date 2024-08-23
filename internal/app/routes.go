@@ -10,7 +10,7 @@ import (
 	"github.com/fdemchenko/arcus/internal/api/response"
 	"github.com/fdemchenko/arcus/internal/models"
 	"github.com/fdemchenko/arcus/internal/repositories"
-	"github.com/fdemchenko/arcus/internal/services"
+	"github.com/fdemchenko/arcus/internal/repositories/postgres"
 	"github.com/fdemchenko/arcus/internal/validator"
 	"github.com/justinas/alice"
 )
@@ -92,8 +92,8 @@ func (app *Application) activateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := app.userService.Activate(input.Token); err != nil {
-		if errors.Is(err, services.ErrActivationTokenExpired) {
-			response.SendError(w, http.StatusGone, err.Error())
+		if errors.Is(err, postgres.ErrTokenNotFound) {
+			response.SendError(w, http.StatusNotFound, err.Error())
 			return
 		}
 		response.SendServerError(w)
