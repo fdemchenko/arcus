@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -86,6 +87,8 @@ func (app *Application) activateUser(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.New()
 	v.Check(input.Token != "", "token", "must not be empty")
+	v.Check(len(input.Token) == models.TokenBytesLength*2, "token", fmt.Sprintf("must be %d characters long", models.TokenBytesLength*2))
+
 	if !v.IsValid() {
 		response.SendError(w, http.StatusBadRequest, v.Errors)
 		return
