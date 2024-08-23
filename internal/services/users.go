@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -19,6 +20,7 @@ var (
 type UsersRepository interface {
 	Insert(user models.User) (int, error)
 	Activate(userID int) error
+	GetByID(userID int) (*models.User, error)
 }
 
 type TokensRepository interface {
@@ -71,17 +73,33 @@ func (us *UsersService) Register(user models.User) (int, error) {
 		logger.Error("failed to create new user in DB", slog.String("error", err.Error()))
 		return 0, err
 	}
+	user.ID = newUserID
+	err = us.SendActivationToken(user)
+	if err != nil {
+		logger.Error("failed to send activation token", slog.String("error", err.Error()))
+	}
+	return newUserID, nil
+}
 
-	activationToken, err := models.GenerateToken(models.ScopeActivation, us.activationTokenTTL, newUserID)
+func (us *UsersService) SendActivationToken(user models.User) error {
+	const op = "services.UserService.SendActivationToken"
+	logger := us.logger.With(slog.String("op", op))
+
+	err := us.tokensRepository.DeleteAllForUser(user.ID, models.ScopeActivation)
+	if err != nil {
+		return fmt.Errorf("failed to delete activation tokens from DB: %w", err)
+	}
+
+	activationToken, err := models.GenerateToken(models.ScopeActivation, us.activationTokenTTL, user.ID)
 	if err != nil {
 		logger.Error("failed to create activation token", slog.String("error", err.Error()))
-		return newUserID, nil
+		return err
 	}
 
 	err = us.tokensRepository.Insert(*activationToken)
 	if err != nil {
 		logger.Error("failed to insert token to DB", slog.String("error", err.Error()))
-		return newUserID, nil
+		return err
 	}
 
 	command := mail.SendEmailCommand[any]{
@@ -93,8 +111,11 @@ func (us *UsersService) Register(user models.User) (int, error) {
 	if err != nil {
 		logger.Error("failed to send email command", slog.String("error", err.Error()))
 	}
+	return err
+}
 
-	return newUserID, nil
+func (us *UsersService) GetByID(userID int) (*models.User, error) {
+	return us.usersRepository.GetByID(userID)
 }
 
 func (us *UsersService) Activate(tokenPlaintext string) error {

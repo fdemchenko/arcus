@@ -14,6 +14,8 @@ type Application struct {
 type UserService interface {
 	Register(models.User) (int, error)
 	Activate(token string) error
+	SendActivationToken(user models.User) error
+	GetByID(userID int) (*models.User, error)
 }
 
 func New(userService UserService, logger *slog.Logger) *Application {
