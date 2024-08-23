@@ -9,3 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT current_timestamp
 );
+
+CREATE TRIGGER users_moddatetime
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE PROCEDURE moddatetime(updated_at);

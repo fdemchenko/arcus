@@ -1,6 +1,10 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -9,14 +13,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const ActivationTokenTTL = time.Hour * 2
+var (
+	ErrActivationTokenExpired = errors.New("activation token has expired")
+)
 
 type UsersRepository interface {
 	Insert(user models.User) (int, error)
+	Activate(userID int) error
+	GetByID(userID int) (*models.User, error)
 }
 
 type TokensRepository interface {
 	Insert(models.Token) error
+	GetByTokenHash(hash []byte, scope string) (*models.Token, error)
+	DeleteAllForUser(userID int, scope string) error
 }
 
 type MailerProducer interface {
@@ -24,10 +34,11 @@ type MailerProducer interface {
 }
 
 type UsersService struct {
-	usersRepository  UsersRepository
-	tokensRepository TokensRepository
-	mailerProducer   MailerProducer
-	logger           *slog.Logger
+	usersRepository    UsersRepository
+	tokensRepository   TokensRepository
+	mailerProducer     MailerProducer
+	logger             *slog.Logger
+	activationTokenTTL time.Duration
 }
 
 func NewUserService(
@@ -35,12 +46,14 @@ func NewUserService(
 	logger *slog.Logger,
 	tokensRepository TokensRepository,
 	mailerProducer MailerProducer,
+	activationTokenTTL time.Duration,
 ) *UsersService {
 	return &UsersService{
-		usersRepository:  usersRepository,
-		logger:           logger,
-		tokensRepository: tokensRepository,
-		mailerProducer:   mailerProducer,
+		usersRepository:    usersRepository,
+		logger:             logger,
+		tokensRepository:   tokensRepository,
+		mailerProducer:     mailerProducer,
+		activationTokenTTL: activationTokenTTL,
 	}
 }
 
@@ -60,17 +73,33 @@ func (us *UsersService) Register(user models.User) (int, error) {
 		logger.Error("failed to create new user in DB", slog.String("error", err.Error()))
 		return 0, err
 	}
+	user.ID = newUserID
+	err = us.SendActivationToken(user)
+	if err != nil {
+		logger.Error("failed to send activation token", slog.String("error", err.Error()))
+	}
+	return newUserID, nil
+}
 
-	activationToken, err := models.GenerateToken(models.ScopeActivation, ActivationTokenTTL, newUserID)
+func (us *UsersService) SendActivationToken(user models.User) error {
+	const op = "services.UserService.SendActivationToken"
+	logger := us.logger.With(slog.String("op", op))
+
+	err := us.tokensRepository.DeleteAllForUser(user.ID, models.ScopeActivation)
+	if err != nil {
+		return fmt.Errorf("failed to delete activation tokens from DB: %w", err)
+	}
+
+	activationToken, err := models.GenerateToken(models.ScopeActivation, us.activationTokenTTL, user.ID)
 	if err != nil {
 		logger.Error("failed to create activation token", slog.String("error", err.Error()))
-		return newUserID, nil
+		return err
 	}
 
 	err = us.tokensRepository.Insert(*activationToken)
 	if err != nil {
 		logger.Error("failed to insert token to DB", slog.String("error", err.Error()))
-		return newUserID, nil
+		return err
 	}
 
 	command := mail.SendEmailCommand[any]{
@@ -82,6 +111,45 @@ func (us *UsersService) Register(user models.User) (int, error) {
 	if err != nil {
 		logger.Error("failed to send email command", slog.String("error", err.Error()))
 	}
+	return err
+}
 
-	return newUserID, nil
+func (us *UsersService) GetByID(userID int) (*models.User, error) {
+	return us.usersRepository.GetByID(userID)
+}
+
+func (us *UsersService) Activate(tokenPlaintext string) error {
+	const op = "services.UserService.Activate"
+	logger := us.logger.With(slog.String("op", op))
+
+	// decode to bytes
+	tokenBytes := make([]byte, len(tokenPlaintext)/2)
+	_, err := hex.Decode(tokenBytes, []byte(tokenPlaintext))
+	if err != nil {
+		logger.Error("failed to decode hex-encoded token", slog.String("error", err.Error()))
+		return err
+	}
+
+	// get the token hash
+	tokenSha256 := sha256.Sum256(tokenBytes)
+
+	token, err := us.tokensRepository.GetByTokenHash(tokenSha256[:], models.ScopeActivation)
+	if err != nil {
+		logger.Error("failed to retrieve token from DB", slog.String("error", err.Error()))
+		return err
+	}
+
+	defer func() {
+		err := us.tokensRepository.DeleteAllForUser(token.UserID, models.ScopeActivation)
+		if err != nil {
+			logger.Error("failed to delete activation token", slog.String("error", err.Error()))
+		}
+	}()
+
+	err = us.usersRepository.Activate(token.UserID)
+	if err != nil {
+		logger.Error("failed to update user record", slog.String("error", err.Error()))
+		return err
+	}
+	return nil
 }

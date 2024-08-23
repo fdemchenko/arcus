@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -12,6 +13,7 @@ type Config struct {
 	Storage            StorageConfig `yaml:"storage"`
 	HTTPServer         HTTPConfig    `yaml:"http-server"`
 	SMTPMailer         SMTPConfig    `yaml:"smtp-mailer"`
+	ActivationTokenTTL time.Duration `yaml:"activation-token-ttl" env-default:"2h"`
 	RabbitMQConnString string        `yaml:"rabbitmq-conn-string" env-required:"true"`
 	OpenAIKEY          string        `yaml:"openai-key" env:"ARCUS_OPENAI_KEY" env-required:"true"`
 	Env                string        `yaml:"env" env-default:"development"`

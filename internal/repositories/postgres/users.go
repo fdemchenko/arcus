@@ -9,6 +9,8 @@ import (
 	"github.com/lib/pq"
 )
 
+var ErrUserDoesNotExists = errors.New("user does not exists")
+
 type UsersRepository struct {
 	DB *sql.DB
 }
@@ -29,4 +31,25 @@ func (ur *UsersRepository) Insert(user models.User) (int, error) {
 	}
 
 	return id, nil
+}
+
+func (ur *UsersRepository) GetByID(userID int) (*models.User, error) {
+	query := `SELECT id, name, email, password_hash, activated, created_at, updated_at
+					 FROM users WHERE id = $1`
+	var user models.User
+	row := ur.DB.QueryRow(query, userID)
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password.Hash, &user.Activated, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserDoesNotExists
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (ur *UsersRepository) Activate(userID int) error {
+	query := `UPDATE users SET activated = TRUE WHERE id = $1`
+	_, err := ur.DB.Exec(query, userID)
+	return err
 }
