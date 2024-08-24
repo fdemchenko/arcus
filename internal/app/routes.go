@@ -84,6 +84,7 @@ func (app *Application) activateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("failed to decode JSON user input", slog.String("error", err.Error()))
 		response.SendError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	v := validator.New()
@@ -120,6 +121,7 @@ func (app *Application) resendActivationToken(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		logger.Error("failed to decode JSON user input", slog.String("error", err.Error()))
 		response.SendError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	user, err := app.userService.GetByID(input.UserID)
