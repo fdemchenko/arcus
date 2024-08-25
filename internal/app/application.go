@@ -7,8 +7,9 @@ import (
 )
 
 type Application struct {
-	userService UserService
-	logger      *slog.Logger
+	userService  UserService
+	postsService PostsService
+	logger       *slog.Logger
 }
 
 type UserService interface {
@@ -18,9 +19,14 @@ type UserService interface {
 	GetByID(userID int) (*models.User, error)
 }
 
-func New(userService UserService, logger *slog.Logger) *Application {
+type PostsService interface {
+	Create(models.Post) (int, error)
+}
+
+func New(userService UserService, postsService PostsService, logger *slog.Logger) *Application {
 	return &Application{
-		userService: userService,
-		logger:      logger,
+		userService:  userService,
+		postsService: postsService,
+		logger:       logger,
 	}
 }

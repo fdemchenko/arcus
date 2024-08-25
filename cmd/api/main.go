@@ -39,6 +39,7 @@ func main() {
 
 	usersRepo := &postgres.UsersRepository{DB: db}
 	tokensRepo := &postgres.TokensRepository{DB: db}
+	postsRepo := &postgres.PostsRepository{DB: db}
 
 	mailerService := mail.NewMailSender(cfg.SMTPMailer, templates.TemplatesFS)
 	consumer, err := mail.NewMailerConsumer(mailerService, channel, logger)
@@ -51,7 +52,8 @@ func main() {
 	handleCriticalError(err, "failer to create mailer producer", logger)
 
 	userService := services.NewUserService(usersRepo, logger, tokensRepo, producer, cfg.ActivationTokenTTL)
-	application := app.New(userService, logger)
+	postsService := services.NewPostsService(logger, postsRepo)
+	application := app.New(userService, postsService, logger)
 
 	// http server start
 	address := fmt.Sprintf("%s:%d", cfg.HTTPServer.Host, cfg.HTTPServer.Port)
