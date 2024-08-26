@@ -1,13 +1,16 @@
 package app
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/fdemchenko/arcus/internal/api/request"
 	"github.com/fdemchenko/arcus/internal/api/response"
 	"github.com/fdemchenko/arcus/internal/models"
+	"github.com/fdemchenko/arcus/internal/repositories/postgres"
 	"github.com/fdemchenko/arcus/internal/validator"
 )
 
@@ -75,4 +78,28 @@ func (app *Application) getPosts(w http.ResponseWriter, r *http.Request) {
 	if err := response.WriteJSON(w, http.StatusOK, response.Envelope{"posts": posts}); err != nil {
 		response.SendServerError(w)
 	}
+}
+
+func (app *Application) getPostByID(w http.ResponseWriter, r *http.Request) {
+	const op = "app.routes.getPostByID"
+	logger := app.logger.With(slog.String("op", op))
+
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	post, err := app.postsService.GetByID(id)
+	if err != nil {
+		logger.Error("failed to retrieve post from DB", slog.String("err", err.Error()))
+		if errors.Is(err, postgres.ErrPostDoesNotExist) {
+			response.SendError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		response.SendServerError(w)
+		return
+	}
+
+	response.WriteJSON(w, http.StatusOK, response.Envelope{"post": post})
 }

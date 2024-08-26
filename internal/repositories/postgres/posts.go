@@ -2,10 +2,13 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/fdemchenko/arcus/internal/models"
 	"github.com/lib/pq"
 )
+
+var ErrPostDoesNotExist = errors.New("post does not exist")
 
 type PostsRepository struct {
 	DB *sql.DB
@@ -41,4 +44,22 @@ func (pr *PostsRepository) GetAll() ([]models.Post, error) {
 		posts = append(posts, post)
 	}
 	return posts, nil
+}
+
+func (pr *PostsRepository) GetByID(id int) (*models.Post, error) {
+	query := `SELECT id, title, content, created_at, updated_at, tags FROM posts
+					WHERE id = $1`
+
+	var post models.Post
+
+	tags := pq.StringArray{}
+	err := pr.DB.QueryRow(query, id).Scan(&post.ID, &post.Title, &post.Content, &post.CreatedAt, &post.UpdatedAt, &tags)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrPostDoesNotExist
+		}
+		return nil, err
+	}
+	post.Tags = tags
+	return &post, nil
 }

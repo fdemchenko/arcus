@@ -9,6 +9,7 @@ import (
 type PostsRepository interface {
 	Insert(models.Post) (int, error)
 	GetAll() ([]models.Post, error)
+	GetByID(int) (*models.Post, error)
 }
 
 type PostsService struct {
@@ -29,4 +30,8 @@ func (ps *PostsService) Create(post models.Post) (int, error) {
 
 func (ps *PostsService) GetAll() ([]models.Post, error) {
 	return ps.postsRepository.GetAll()
+}
+
+func (ps *PostsService) GetByID(id int) (*models.Post, error) {
+	return ps.postsRepository.GetByID(id)
 }
