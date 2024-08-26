@@ -21,6 +21,7 @@ type UserService interface {
 
 type PostsService interface {
 	Create(models.Post) (int, error)
+	GetAll() ([]models.Post, error)
 }
 
 func New(userService UserService, postsService PostsService, logger *slog.Logger) *Application {

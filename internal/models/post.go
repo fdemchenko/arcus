@@ -12,13 +12,13 @@ const PostTagMaxLength = 40
 const PostTagsMaxAmount = 6
 
 type Post struct {
-	ID        int
-	Title     string
-	Content   *string
-	Tags      []string
-	UserID    int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        int       `json:"id"`
+	Title     string    `json:"title"`
+	Content   *string   `json:"content"`
+	Tags      []string  `json:"tags"`
+	UserID    int       `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (p *Post) Validate(v validator.Validator) {

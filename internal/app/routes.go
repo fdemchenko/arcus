@@ -14,6 +14,7 @@ func (app *Application) Routes() http.Handler {
 	mux.HandleFunc("POST /auth/resend-activation-token", app.resendActivationToken)
 
 	mux.HandleFunc("POST /posts", app.createPost)
+	mux.HandleFunc("GET /posts", app.getPosts)
 	middlewares := alice.New(app.RecoveryMiddleware, app.LoggingMiddleware)
 
 	return middlewares.Then(mux)

@@ -8,6 +8,7 @@ import (
 
 type PostsRepository interface {
 	Insert(models.Post) (int, error)
+	GetAll() ([]models.Post, error)
 }
 
 type PostsService struct {
@@ -24,4 +25,8 @@ func NewPostsService(logger *slog.Logger, postsRepository PostsRepository) *Post
 
 func (ps *PostsService) Create(post models.Post) (int, error) {
 	return ps.postsRepository.Insert(post)
+}
+
+func (ps *PostsService) GetAll() ([]models.Post, error) {
+	return ps.postsRepository.GetAll()
 }

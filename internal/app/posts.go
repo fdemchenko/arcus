@@ -60,3 +60,19 @@ func (app *Application) createPost(w http.ResponseWriter, r *http.Request) {
 		response.SendServerError(w)
 	}
 }
+
+func (app *Application) getPosts(w http.ResponseWriter, r *http.Request) {
+	const op = "app.routes.getPosts"
+	logger := app.logger.With(slog.String("op", op))
+
+	posts, err := app.postsService.GetAll()
+	if err != nil {
+		logger.Error("failed to get all posts", slog.String("err", err.Error()))
+		response.SendServerError(w)
+		return
+	}
+
+	if err := response.WriteJSON(w, http.StatusOK, response.Envelope{"posts": posts}); err != nil {
+		response.SendServerError(w)
+	}
+}
