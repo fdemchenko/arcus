@@ -103,3 +103,27 @@ func (app *Application) getPostByID(w http.ResponseWriter, r *http.Request) {
 
 	response.WriteJSON(w, http.StatusOK, response.Envelope{"post": post})
 }
+
+func (app *Application) deletePostByID(w http.ResponseWriter, r *http.Request) {
+	const op = "app.routes.deletePostByID"
+	logger := app.logger.With(slog.String("op", op))
+
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	deletedID, err := app.postsService.DeleteByID(id)
+	if err != nil {
+		logger.Error("failed to delete post from DB", slog.String("err", err.Error()))
+		if errors.Is(err, postgres.ErrPostDoesNotExist) {
+			response.SendError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		response.SendServerError(w)
+		return
+	}
+
+	response.WriteJSON(w, http.StatusOK, response.Envelope{"post_id": deletedID})
+}

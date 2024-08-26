@@ -63,3 +63,17 @@ func (pr *PostsRepository) GetByID(id int) (*models.Post, error) {
 	post.Tags = tags
 	return &post, nil
 }
+
+func (pr *PostsRepository) DeleteByID(id int) (int, error) {
+	query := `DELETE FROM posts WHERE id = $1 RETURNING id`
+	var deletedID int
+	err := pr.DB.QueryRow(query, id).Scan(&deletedID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrPostDoesNotExist
+		}
+		return 0, err
+	}
+
+	return deletedID, nil
+}

@@ -10,6 +10,7 @@ type PostsRepository interface {
 	Insert(models.Post) (int, error)
 	GetAll() ([]models.Post, error)
 	GetByID(int) (*models.Post, error)
+	DeleteByID(int) (int, error)
 }
 
 type PostsService struct {
@@ -34,4 +35,8 @@ func (ps *PostsService) GetAll() ([]models.Post, error) {
 
 func (ps *PostsService) GetByID(id int) (*models.Post, error) {
 	return ps.postsRepository.GetByID(id)
+}
+
+func (ps *PostsService) DeleteByID(id int) (int, error) {
+	return ps.postsRepository.DeleteByID(id)
 }
