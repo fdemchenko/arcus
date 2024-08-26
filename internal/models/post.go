@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fdemchenko/arcus/internal/validator"
 )
@@ -23,7 +24,7 @@ type Post struct {
 
 func (p *Post) Validate(v validator.Validator) {
 	v.Check(p.Title != "", "title", "must not be empty")
-	v.Check(len(p.Title) <= PostTitleMaxLength, "title", fmt.Sprintf("must not be greater than %d characters long", PostTitleMaxLength))
+	v.Check(utf8.RuneCountInString(p.Title) <= PostTitleMaxLength, "title", fmt.Sprintf("must not be greater than %d characters long", PostTitleMaxLength))
 
 	if p.Content != nil {
 		v.Check(*p.Content != "", "description", "must not be empty")
@@ -33,6 +34,6 @@ func (p *Post) Validate(v validator.Validator) {
 
 	for _, tag := range p.Tags {
 		v.Check(tag != "", "tag", "must not be empty")
-		v.Check(len(tag) <= PostTagMaxLength, "tag", fmt.Sprintf("must not be greater than %d characters long", PostTagMaxLength))
+		v.Check(utf8.RuneCountInString(tag) <= PostTagMaxLength, "tag", fmt.Sprintf("must not be greater than %d characters long", PostTagMaxLength))
 	}
 }
