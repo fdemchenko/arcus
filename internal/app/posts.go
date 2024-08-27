@@ -127,3 +127,55 @@ func (app *Application) deletePostByID(w http.ResponseWriter, r *http.Request) {
 
 	response.WriteJSON(w, http.StatusOK, response.Envelope{"post_id": deletedID})
 }
+
+func (app *Application) updatePost(w http.ResponseWriter, r *http.Request) {
+	const op = "app.routes.updatePost"
+	logger := app.logger.With(slog.String("op", op))
+
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	var input struct {
+		Title   string   `json:"title"`
+		Content *string  `json:"content"`
+		Tags    []string `json:"tags"`
+	}
+	request.ReadJSON(r.Body, &input)
+	post := models.Post{
+		Title: strings.TrimSpace(input.Title),
+	}
+	if input.Content != nil {
+		trimmed := strings.TrimSpace(*input.Content)
+		post.Content = &trimmed
+	}
+	if input.Tags == nil {
+		input.Tags = make([]string, 0)
+	}
+	for i := range len(input.Tags) {
+		input.Tags[i] = strings.TrimSpace(input.Tags[i])
+	}
+	post.Tags = input.Tags
+	post.ID = id
+
+	v := validator.New()
+	if post.Validate(v); !v.IsValid() {
+		response.SendError(w, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	err = app.postsService.UpdateByID(post)
+	if err != nil {
+		logger.Error("failed to update post", slog.String("err", err.Error()))
+		if errors.Is(err, postgres.ErrPostDoesNotExist) {
+			response.SendError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		response.SendServerError(w)
+		return
+	}
+
+	response.WriteJSON(w, http.StatusOK, response.Envelope{"post_id": id})
+}

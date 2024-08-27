@@ -11,6 +11,7 @@ type PostsRepository interface {
 	GetAll() ([]models.Post, error)
 	GetByID(int) (*models.Post, error)
 	DeleteByID(int) (int, error)
+	UpdateByID(models.Post) error
 }
 
 type PostsService struct {
@@ -39,4 +40,8 @@ func (ps *PostsService) GetByID(id int) (*models.Post, error) {
 
 func (ps *PostsService) DeleteByID(id int) (int, error) {
 	return ps.postsRepository.DeleteByID(id)
+}
+
+func (ps *PostsService) UpdateByID(post models.Post) error {
+	return ps.postsRepository.UpdateByID(post)
 }

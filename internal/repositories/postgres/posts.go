@@ -77,3 +77,24 @@ func (pr *PostsRepository) DeleteByID(id int) (int, error) {
 
 	return deletedID, nil
 }
+
+func (pr *PostsRepository) UpdateByID(post models.Post) error {
+	query := `UPDATE posts 
+					 SET title = $1,
+					 content = $2,
+					 tags = $3 WHERE id = $4`
+	result, err := pr.DB.Exec(query, post.Title, post.Content, pq.StringArray(post.Tags), post.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrPostDoesNotExist
+	}
+	return nil
+}
