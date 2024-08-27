@@ -31,7 +31,7 @@ func (pr *PostsRepository) GetAll() ([]models.Post, error) {
 	}
 	defer rows.Close()
 
-	var posts []models.Post
+	posts := make([]models.Post, 0)
 
 	for rows.Next() {
 		var post models.Post
