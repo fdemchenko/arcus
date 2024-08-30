@@ -18,6 +18,7 @@ func (app *Application) Routes() http.Handler {
 	mux.HandleFunc("GET /posts/{id}", app.getPostByID)
 	mux.HandleFunc("DELETE /posts/{id}", app.deletePostByID)
 	mux.HandleFunc("PUT /posts/{id}", app.updatePost)
+	mux.HandleFunc("PATCH /posts/{id}", app.partialPostUpdate)
 	middlewares := alice.New(app.RecoveryMiddleware, app.LoggingMiddleware)
 
 	return middlewares.Then(mux)

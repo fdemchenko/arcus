@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/fdemchenko/arcus/internal/api/request"
 	"github.com/fdemchenko/arcus/internal/api/response"
@@ -31,19 +30,10 @@ func (app *Application) createPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := models.Post{
-		Title: strings.TrimSpace(input.Title),
+		Title:   input.Title,
+		Content: input.Content,
+		Tags:    input.Tags,
 	}
-	if input.Content != nil {
-		trimmed := strings.TrimSpace(*input.Content)
-		post.Content = &trimmed
-	}
-	if input.Tags == nil {
-		input.Tags = make([]string, 0)
-	}
-	for i := range len(input.Tags) {
-		input.Tags[i] = strings.TrimSpace(input.Tags[i])
-	}
-	post.Tags = input.Tags
 
 	v := validator.New()
 	if post.Validate(v); !v.IsValid() {
@@ -138,26 +128,32 @@ func (app *Application) updatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = app.postsService.GetByID(id)
+	if err != nil {
+		logger.Error("failed to get post from DB", slog.String("err", err.Error()))
+		if errors.Is(err, postgres.ErrPostDoesNotExist) {
+			response.SendError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		response.SendServerError(w)
+		return
+	}
+
 	var input struct {
 		Title   string   `json:"title"`
 		Content *string  `json:"content"`
 		Tags    []string `json:"tags"`
 	}
-	request.ReadJSON(r.Body, &input)
+	err = request.ReadJSON(r.Body, &input)
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
 	post := models.Post{
-		Title: strings.TrimSpace(input.Title),
+		Title:   input.Title,
+		Content: input.Content,
+		Tags:    input.Tags,
 	}
-	if input.Content != nil {
-		trimmed := strings.TrimSpace(*input.Content)
-		post.Content = &trimmed
-	}
-	if input.Tags == nil {
-		input.Tags = make([]string, 0)
-	}
-	for i := range len(input.Tags) {
-		input.Tags[i] = strings.TrimSpace(input.Tags[i])
-	}
-	post.Tags = input.Tags
 	post.ID = id
 
 	v := validator.New()
@@ -169,6 +165,26 @@ func (app *Application) updatePost(w http.ResponseWriter, r *http.Request) {
 	err = app.postsService.UpdateByID(post)
 	if err != nil {
 		logger.Error("failed to update post", slog.String("err", err.Error()))
+		response.SendServerError(w)
+		return
+	}
+
+	response.WriteJSON(w, http.StatusOK, response.Envelope{"post_id": id})
+}
+
+func (app *Application) partialPostUpdate(w http.ResponseWriter, r *http.Request) {
+	const op = "app.routes.updatePostPartial"
+	logger := app.logger.With(slog.String("op", op))
+
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	post, err := app.postsService.GetByID(id)
+	if err != nil {
+		logger.Error("failed to get post from DB", slog.String("err", err.Error()))
 		if errors.Is(err, postgres.ErrPostDoesNotExist) {
 			response.SendError(w, http.StatusNotFound, err.Error())
 			return
@@ -177,5 +193,51 @@ func (app *Application) updatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, response.Envelope{"post_id": id})
+	input := struct {
+		Title   *string  `json:"title"`
+		Content *string  `json:"content"`
+		Tags    []string `json:"tags"`
+	}{}
+
+	err = request.ReadJSON(r.Body, &input)
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		return
+	}
+
+	if input.Title != nil {
+		post.Title = *input.Title
+	}
+
+	if input.Content != nil {
+		post.Content = input.Content
+		if *input.Content == "" {
+			post.Content = nil
+		}
+	}
+
+	if input.Tags != nil {
+		post.Tags = input.Tags
+	}
+
+	v := validator.New()
+	if post.Validate(v); !v.IsValid() {
+		logger.Error("failed to validate incoming post", slog.Any("err", v.Errors))
+		response.SendError(w, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	err = app.postsService.UpdateByID(*post)
+	if err != nil {
+		if errors.Is(err, postgres.ErrEditConflict) {
+			response.SendError(w, http.StatusConflict, err.Error())
+			return
+		}
+		response.SendServerError(w)
+		return
+	}
+
+	if err := response.WriteJSON(w, http.StatusOK, response.Envelope{"post": *post}); err != nil {
+		response.SendServerError(w)
+	}
 }
